@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Flipbook.Title}}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="description" content="{{.MetaDesc}}">
     <link rel="canonical" href="{{.CanonicalURL}}">
 
@@ -35,12 +36,22 @@
     }
     </script>
 
-    <link rel="stylesheet" href="/static/css/viewer.css?v=2">
+    <link rel="stylesheet" href="/static/css/viewer.css?v=9">
 </head>
 <body>
     <div id="viewer-wrapper">
+        <div id="landscape-hint">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+            Rotate for best viewing experience
+        </div>
         <div id="flipbook-container">
+            <button class="nav-overlay" id="nav-prev" aria-label="Previous page">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
             <div id="flipbook"></div>
+            <button class="nav-overlay" id="nav-next" aria-label="Next page">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
         </div>
 
         <div id="controls">
@@ -162,7 +173,7 @@
         };
     </script>
     <script src="/static/js/page-flip.browser.js"></script>
-    <script src="/static/js/viewer.js?v=2"></script>
+    <script src="/static/js/viewer.js?v=9"></script>
 </body>
 </html>
 {{end}}

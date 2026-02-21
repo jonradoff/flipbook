@@ -11,6 +11,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
 }
 
@@ -21,11 +22,35 @@ body {
     justify-content: center;
     padding: 20px;
     overflow: hidden;
+    position: relative;
 }
 
 #flipbook {
     /* StPageFlip will manage sizing */
 }
+
+/* Floating navigation overlays (mobile) */
+.nav-overlay {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: rgba(0,0,0,0.25);
+    border: none;
+    color: rgba(255,255,255,0.8);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+.nav-overlay:active:not(:disabled) { background: rgba(0,0,0,0.5); }
+.nav-overlay:disabled { opacity: 0.15; }
+#nav-prev { left: 6px; }
+#nav-next { right: 6px; }
 
 /* Page images within StPageFlip */
 .stf__parent {
@@ -82,9 +107,13 @@ body {
     transition: background 0.2s, border-color 0.2s;
     flex-shrink: 0;
 }
-#controls button:hover {
+#controls button:hover:not(:disabled) {
     background: rgba(255,255,255,0.1);
     border-color: rgba(255,255,255,0.4);
+}
+#controls button:disabled {
+    opacity: 0.3;
+    cursor: default;
 }
 
 #page-indicator {
@@ -429,13 +458,86 @@ img.grid-page-img {
     display: none;
 }
 
-/* Responsive */
+/* iOS pseudo-fullscreen fallback */
+.pseudo-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+}
+.pseudo-fullscreen #flipbook-container { padding: 5px; }
+.pseudo-fullscreen #attribution { display: none; }
+.pseudo-fullscreen #landscape-hint { display: none; }
+
+/* Mobile responsive */
 @media (max-width: 768px) {
-    #controls { gap: 6px; padding: 8px 12px; }
-    #flipbook-container { padding: 10px; }
+    #flipbook-container { padding: 6px; }
+    #attribution { font-size: 9px; padding: 3px 10px; }
+    .nav-overlay { display: flex; }
+
+    /* Disable 3D touch interaction — allow browser pinch-zoom */
+    #flipbook, .stf__parent { touch-action: manipulation; }
+
+    /* Two-row controls on mobile */
+    #controls {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+    }
+    #controls button {
+        width: 40px;
+        height: 40px;
+        -webkit-tap-highlight-color: transparent;
+    }
+    #page-indicator { font-size: 12px; min-width: 60px; }
+
+    /* Slider takes full width on its own row */
+    #page-slider-container {
+        order: 10;
+        flex-basis: 100%;
+        min-width: 0;
+        padding: 2px 0 0;
+    }
+    #page-slider { height: 6px; }
+    #page-slider::-webkit-slider-thumb { width: 20px; height: 20px; }
+    #page-slider::-moz-range-thumb { width: 20px; height: 20px; }
+    .controls-spacer { display: none; }
+
+    /* Search bar mobile */
+    #search-bar { top: 8px; width: 94%; left: 3%; transform: none; }
+    #search-input { width: 100%; min-width: 0; flex: 1; font-size: 16px; }
+    #search-bar-inner { padding: 8px 10px; gap: 6px; }
+
+    /* Grid mobile */
     #grid-container {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 12px;
-        padding: 12px;
+        gap: 10px;
+        padding: 10px;
     }
+    #grid-header { padding: 12px 16px; }
+
+    /* Modal mobile */
+    .modal-content { padding: 20px; width: 95%; }
+}
+
+/* Landscape hint for portrait mobile */
+@media (max-width: 768px) and (orientation: portrait) {
+    #landscape-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 6px 16px;
+        background: rgba(99, 102, 241, 0.15);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+        font-size: 12px;
+        color: rgba(255,255,255,0.6);
+        flex-shrink: 0;
+    }
+    #landscape-hint svg { flex-shrink: 0; }
+}
+@media (min-width: 769px), (orientation: landscape) {
+    #landscape-hint { display: none; }
 }

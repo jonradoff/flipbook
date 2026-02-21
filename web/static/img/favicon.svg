@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Book spine -->
+  <rect x="14" y="6" width="4" height="22" rx="1" fill="#4f46e5"/>
+  <!-- Left page (current) -->
+  <path d="M14 7 L4 8 Q3 8.1 3 9 L3 26 Q3 27 4 27 L14 27 Z" fill="#e0e7ff" stroke="#6366f1" stroke-width="0.5"/>
+  <!-- Left page lines -->
+  <line x1="6" y1="12" x2="12" y2="12" stroke="#a5b4fc" stroke-width="0.7"/>
+  <line x1="6" y1="15" x2="12" y2="15" stroke="#a5b4fc" stroke-width="0.7"/>
+  <line x1="6" y1="18" x2="11" y2="18" stroke="#a5b4fc" stroke-width="0.7"/>
+  <!-- Right page (flipping) -->
+  <path d="M18 7 L27 5 Q28.5 4.8 29 6 L29 23 Q28.5 24.5 27 24.5 L18 27 Z" fill="#f5f3ff" stroke="#6366f1" stroke-width="0.5"/>
+  <!-- Middle flipping page -->
+  <path d="M18 7 L26 3.5 Q27.5 3 28 4.5 L26 22 Q25.5 23.5 24.5 23 L18 27 Z" fill="#ede9fe" stroke="#818cf8" stroke-width="0.4" opacity="0.7"/>
+  <!-- Back flipping page -->
+  <path d="M18 7 L25 2 Q26.5 1.2 27 3 L24 20.5 Q23.5 22 22.5 21.5 L18 27 Z" fill="#ddd6fe" stroke="#a78bfa" stroke-width="0.3" opacity="0.5"/>
+</svg>

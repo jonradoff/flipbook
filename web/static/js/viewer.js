@@ -2,59 +2,85 @@ document.addEventListener('DOMContentLoaded', function() {
     var data = window.FLIPBOOK_DATA;
     if (!data || !data.pages || data.pages.length === 0) return;
 
-    var container = document.getElementById('flipbook');
     var wrapper = document.getElementById('flipbook-container');
+    var navNext = document.getElementById('nav-next');
 
     // Calculate single-page dimensions to fill the available space
     var aspect = data.pageWidth / data.pageHeight;
     var isFullscreen = false;
+    var isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    var currentSize = null;
 
     function calcSize() {
-        var availH, availW;
-        if (isFullscreen) {
-            // In fullscreen, use screen dimensions minus controls bar (~57px)
-            availH = screen.height - 70;
-            availW = screen.width - 20;
-        } else {
-            availH = wrapper.clientHeight - 40;
-            availW = wrapper.clientWidth - 40;
-        }
+        var cs = getComputedStyle(wrapper);
+        var availH = wrapper.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+        var availW = wrapper.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
         var h = availH;
         var w = h * aspect;
         if (w > availW) {
             w = availW;
             h = w / aspect;
         }
-        return { w: Math.round(w), h: Math.round(h) };
+        return { w: Math.max(Math.round(w), 100), h: Math.max(Math.round(h), 100) };
     }
 
     var currentPage = 0;
     var pageFlip = null;
 
+    // Use DPR scaling so StPageFlip's canvas renders at native screen resolution
+    var dpr = Math.min(window.devicePixelRatio || 1, 3); // cap at 3x
+
     function initFlipbook(startPage) {
-        // Clear any previous StPageFlip content
-        container.innerHTML = '';
+        // Remove old elements (sizer contains flipbook on rebuilds;
+        // on first call the original #flipbook from HTML must also be removed)
+        var oldWrap = document.getElementById('flipbook-sizer');
+        if (oldWrap) oldWrap.remove();
+        var oldFb = document.getElementById('flipbook');
+        if (oldFb) oldFb.remove();
 
         var size = calcSize();
-        container.style.width = size.w + 'px';
-        container.style.height = size.h + 'px';
+        currentSize = size;
+
+        // Tell StPageFlip to render at DPR-scaled resolution for crisp canvas
+        var renderW = Math.round(size.w * dpr);
+        var renderH = Math.round(size.h * dpr);
+
+        // Sizer div takes the correct visual size in the flex layout
+        var sizer = document.createElement('div');
+        sizer.id = 'flipbook-sizer';
+        sizer.style.width = size.w + 'px';
+        sizer.style.height = size.h + 'px';
+        sizer.style.overflow = 'hidden';
+        sizer.style.flexShrink = '0';
+        sizer.style.margin = 'auto';
+
+        // Flipbook container is sized at render resolution, scaled down to fit sizer
+        var container = document.createElement('div');
+        container.id = 'flipbook';
+        container.style.width = renderW + 'px';
+        container.style.height = renderH + 'px';
+        container.style.transform = 'scale(' + (1 / dpr) + ')';
+        container.style.transformOrigin = 'top left';
+
+        sizer.appendChild(container);
+        wrapper.insertBefore(sizer, navNext);
 
         pageFlip = new St.PageFlip(container, {
-            width: size.w,
-            height: size.h,
+            width: renderW,
+            height: renderH,
             size: 'fixed',
-            drawShadow: true,
+            drawShadow: !isMobile,
             flippingTime: 300,
             usePortrait: true,
             startZIndex: 0,
             startPage: startPage,
             autoSize: false,
-            maxShadowOpacity: 0.6,
+            maxShadowOpacity: isMobile ? 0 : 0.6,
             showCover: true,
-            mobileScrollSupport: true,
-            swipeDistance: 30,
-            useMouseEvents: true,
-            disableFlipByClick: false
+            mobileScrollSupport: false,
+            swipeDistance: isMobile ? 99999 : 30,
+            useMouseEvents: !isMobile,
+            disableFlipByClick: isMobile
         });
 
         pageFlip.loadFromImages(data.pages);
@@ -76,15 +102,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initFlipbook(startPage);
 
-    // Update page display
+    // Update page display and button states
     function updatePageDisplay(pageIndex) {
         currentPage = pageIndex;
         var pageNum = pageIndex + 1;
         document.getElementById('current-page').textContent = pageNum;
         var slider = document.getElementById('page-slider');
-        if (slider) {
-            slider.value = pageNum;
-        }
+        if (slider) slider.value = pageNum;
+
+        // Disable prev/next at boundaries
+        var isFirst = pageIndex === 0;
+        var isLast = pageIndex >= data.pageCount - 1;
+
+        var bp = document.getElementById('btn-prev');
+        var bn = document.getElementById('btn-next');
+        var np = document.getElementById('nav-prev');
+        var nn = document.getElementById('nav-next');
+
+        if (bp) bp.disabled = isFirst;
+        if (bn) bn.disabled = isLast;
+        if (np) np.disabled = isFirst;
+        if (nn) nn.disabled = isLast;
     }
 
     // Page navigation
@@ -93,13 +131,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (prevBtn) {
         prevBtn.addEventListener('click', function() {
-            pageFlip.flipPrev('top');
+            if (pageFlip) pageFlip.turnToPage(Math.max(0, currentPage - 1));
         });
     }
 
     if (nextBtn) {
         nextBtn.addEventListener('click', function() {
-            pageFlip.flipNext('top');
+            if (pageFlip) pageFlip.turnToPage(Math.min(data.pageCount - 1, currentPage + 1));
+        });
+    }
+
+    // Floating nav overlays (mobile)
+    var navPrev = document.getElementById('nav-prev');
+    var navNext = document.getElementById('nav-next');
+    if (navPrev) {
+        navPrev.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (pageFlip) pageFlip.turnToPage(Math.max(0, currentPage - 1));
+        });
+    }
+    if (navNext) {
+        navNext.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (pageFlip) pageFlip.turnToPage(Math.min(data.pageCount - 1, currentPage + 1));
         });
     }
 
@@ -108,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (slider) {
         slider.addEventListener('input', function() {
             var targetPage = parseInt(this.value, 10) - 1;
-            if (targetPage !== currentPage) {
+            if (targetPage !== currentPage && pageFlip) {
                 pageFlip.turnToPage(targetPage);
             }
         });
@@ -127,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Escape closes search first, then grid, then share
+        // Escape closes search first, then grid, then pseudo-fullscreen, then share
         if (e.key === 'Escape') {
             if (searchVisible) {
                 closeSearch();
@@ -136,6 +190,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 var gridVisible = gridOverlay && !gridOverlay.classList.contains('hidden');
                 if (gridVisible) {
                     closeGrid();
+                } else if (document.getElementById('viewer-wrapper').classList.contains('pseudo-fullscreen')) {
+                    toggleFullscreen();
                 } else {
                     closeShareModal();
                 }
@@ -163,16 +219,16 @@ document.addEventListener('DOMContentLoaded', function() {
         switch(e.key) {
             case 'ArrowLeft':
             case 'ArrowUp':
-                if (!gridVisible) {
-                    pageFlip.flipPrev('top');
+                if (!gridVisible && pageFlip) {
+                    pageFlip.turnToPage(Math.max(0, currentPage - 1));
                     e.preventDefault();
                 }
                 break;
             case 'ArrowRight':
             case 'ArrowDown':
             case ' ':
-                if (!gridVisible) {
-                    pageFlip.flipNext('top');
+                if (!gridVisible && pageFlip) {
+                    pageFlip.turnToPage(Math.min(data.pageCount - 1, currentPage + 1));
                     e.preventDefault();
                 }
                 break;
@@ -199,28 +255,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function toggleFullscreen() {
         var el = document.getElementById('viewer-wrapper');
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         } else if (el.requestFullscreen) {
             el.requestFullscreen();
         } else if (el.webkitRequestFullscreen) {
             el.webkitRequestFullscreen();
+        } else {
+            // iOS fallback: pseudo-fullscreen via CSS
+            isFullscreen = !isFullscreen;
+            el.classList.toggle('pseudo-fullscreen', isFullscreen);
+            scheduleRebuild();
         }
     }
 
-    // Rebuild flipbook at new size on fullscreen change
+    // Rebuild flipbook at new size (debounced, shared timer)
+    var rebuildTimer;
+    function scheduleRebuild() {
+        clearTimeout(rebuildTimer);
+        rebuildTimer = setTimeout(function() {
+            var size = calcSize();
+            // Skip if size hasn't changed meaningfully
+            if (currentSize && Math.abs(size.w - currentSize.w) < 3 && Math.abs(size.h - currentSize.h) < 3) {
+                return;
+            }
+            var savedPage = currentPage;
+            // Don't call pageFlip.destroy() — it corrupts the container.
+            // Just null the reference; initFlipbook() removes the old DOM element.
+            pageFlip = null;
+            initFlipbook(savedPage);
+        }, 150);
+    }
+
     function onFullscreenChange() {
         isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        var savedPage = currentPage;
-        // Wait for the browser to finish the fullscreen transition
-        setTimeout(function() {
-            pageFlip.destroy();
-            initFlipbook(savedPage);
-        }, 200);
+        scheduleRebuild();
     }
 
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+    // ResizeObserver fires after layout — dimensions are guaranteed correct
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(scheduleRebuild).observe(wrapper);
+    }
+    window.addEventListener('resize', scheduleRebuild);
 
     // Share modal
     var shareBtn = document.getElementById('btn-share');
@@ -287,11 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.copyField = function(id) {
         var el = document.getElementById(id);
         if (el) {
-            if (el.tagName === 'TEXTAREA') {
-                el.select();
-            } else {
-                el.select();
-            }
+            el.select();
             document.execCommand('copy');
 
             // Brief visual feedback
@@ -438,21 +514,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 }
             }
-            pageFlip.turnToPage(searchMatches[searchMatchIndex]);
+            if (pageFlip) pageFlip.turnToPage(searchMatches[searchMatchIndex]);
         }
 
         updateSearchStatus();
     }
 
     function searchNextMatch() {
-        if (searchMatches.length === 0) return;
+        if (searchMatches.length === 0 || !pageFlip) return;
         searchMatchIndex = (searchMatchIndex + 1) % searchMatches.length;
         pageFlip.turnToPage(searchMatches[searchMatchIndex]);
         updateSearchStatus();
     }
 
     function searchPrevMatch() {
-        if (searchMatches.length === 0) return;
+        if (searchMatches.length === 0 || !pageFlip) return;
         searchMatchIndex = (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length;
         pageFlip.turnToPage(searchMatches[searchMatchIndex]);
         updateSearchStatus();
@@ -502,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 div.appendChild(label);
 
                 div.addEventListener('click', function() {
-                    pageFlip.turnToPage(pageIndex);
+                    if (pageFlip) pageFlip.turnToPage(pageIndex);
                     closeGrid();
                 });
 
