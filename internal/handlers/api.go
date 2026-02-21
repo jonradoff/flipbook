@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -166,6 +168,76 @@ func (h *APIHandler) FlipbookStatus(w http.ResponseWriter, r *http.Request) {
 		"slug":       fb.Slug,
 		"page_count": fb.PageCount,
 		"error":      fb.ErrorMessage,
+	})
+}
+
+var apiGoogleSlidesRe = regexp.MustCompile(`/presentation/d/([a-zA-Z0-9_-]+)`)
+
+func (h *APIHandler) ImportURL(w http.ResponseWriter, r *http.Request) {
+	url := strings.TrimSpace(r.FormValue("url"))
+	if url == "" {
+		jsonError(w, "No URL provided", 400)
+		return
+	}
+
+	matches := apiGoogleSlidesRe.FindStringSubmatch(url)
+	if len(matches) < 2 {
+		jsonError(w, "Invalid Google Slides URL", 400)
+		return
+	}
+	presentationID := matches[1]
+
+	exportURL := fmt.Sprintf("https://docs.google.com/presentation/d/%s/export/pdf", presentationID)
+	resp, err := http.Get(exportURL)
+	if err != nil {
+		log.Printf("Failed to download Google Slides: %v", err)
+		jsonError(w, "Failed to download presentation. Make sure it is publicly accessible.", 400)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		jsonError(w, "Failed to download presentation. Make sure it is publicly accessible.", 400)
+		return
+	}
+
+	id := uuid.New().String()
+	title := r.FormValue("title")
+	if title == "" {
+		title = "Google Slides Import"
+	}
+	slug := slugify(title)
+	slug = h.db.EnsureUniqueSlug(slug)
+
+	srcPath, err := h.storage.SaveUpload(id, "import.pdf", resp.Body)
+	if err != nil {
+		log.Printf("Failed to save downloaded PDF: %v", err)
+		jsonError(w, "Failed to save file", 500)
+		return
+	}
+
+	fb := &models.Flipbook{
+		ID:       id,
+		Title:    title,
+		Slug:     slug,
+		Filename: "import.pdf",
+		Status:   models.StatusPending,
+	}
+	if err := h.db.CreateFlipbook(fb); err != nil {
+		log.Printf("Failed to create flipbook: %v", err)
+		jsonError(w, "Failed to create flipbook", 500)
+		return
+	}
+
+	h.worker.Enqueue(worker.Job{FlipbookID: id, SourcePath: srcPath})
+
+	w.WriteHeader(http.StatusCreated)
+	jsonResponse(w, map[string]interface{}{
+		"id":         id,
+		"title":      title,
+		"slug":       slug,
+		"status":     "pending",
+		"status_url": h.baseURL + "/api/flipbooks/" + id + "/status",
 	})
 }
 

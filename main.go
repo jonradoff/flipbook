@@ -19,6 +19,7 @@ import (
 	"github.com/jonradoff/flipbook/internal/converter"
 	"github.com/jonradoff/flipbook/internal/database"
 	"github.com/jonradoff/flipbook/internal/handlers"
+	"github.com/jonradoff/flipbook/internal/mcp"
 	"github.com/jonradoff/flipbook/internal/storage"
 	"github.com/jonradoff/flipbook/internal/worker"
 	"golang.org/x/crypto/bcrypt"
@@ -30,6 +31,9 @@ func main() {
 		switch os.Args[1] {
 		case "set-password":
 			runSetPassword()
+			return
+		case "mcp":
+			mcp.Run()
 			return
 		case "help":
 			printHelp()
@@ -50,6 +54,7 @@ func printHelp() {
 	fmt.Println("Commands:")
 	fmt.Println("  (no command)    Start the web server")
 	fmt.Println("  set-password    Set the admin password")
+	fmt.Println("  mcp             Start the MCP server (stdin/stdout)")
 	fmt.Println("  help            Show this help message")
 }
 
@@ -178,6 +183,7 @@ func runServer() {
 		r.Use(apiAuth(cfg.APIKey))
 		r.Get("/api/flipbooks", apiH.ListFlipbooks)
 		r.Post("/api/flipbooks", apiH.UploadFlipbook)
+		r.Post("/api/flipbooks/import", apiH.ImportURL)
 		r.Get("/api/flipbooks/{id}", apiH.GetFlipbook)
 		r.Delete("/api/flipbooks/{id}", apiH.DeleteFlipbook)
 	})
