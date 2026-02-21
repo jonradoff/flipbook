@@ -263,6 +263,9 @@ func parseTemplates() *template.Template {
 		"last": func(i, total int) bool {
 			return i == total-1
 		},
+		"add": func(a, b int) int {
+			return a + b
+		},
 	}
 
 	// Gather all template files

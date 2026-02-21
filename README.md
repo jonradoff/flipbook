@@ -1,18 +1,20 @@
 # Flipbook
 
-A lightweight, self-hosted flipbook generator. Upload PowerPoint or PDF files and get beautiful 3D page-curl flipbooks that can be embedded in any webpage via iframe.
+A lightweight, self-hosted flipbook generator. Upload PowerPoint or PDF files and get beautiful 3D page-curl flipbooks hosted as SEO-optimized webpages, or embeddable in any site via iframe.
 
 ## Features
 
 - **Upload & convert** PowerPoint (.pptx, .ppt) and PDF files to interactive flipbooks
 - **Import from Google Slides** via public share URL
 - **3D page-curl viewer** powered by [StPageFlip](https://github.com/nicech/page-flip) with keyboard navigation, fullscreen, and deep-linking
-- **Embeddable** via iframe with a single line of HTML
+- **SEO-optimized pages** with full slide text rendered as hidden semantic HTML, Open Graph tags, Twitter Cards, JSON-LD structured data, and canonical URLs
+- **Embeddable** via iframe with a single line of HTML, or host directly as standalone pages
 - **Grid view** for browsing all slides at a glance
 - **Full-text search** across slide content
+- **MCP server** for creating flipbooks from AI agent workflows (Claude Code, Cowork, etc.)
 - **Admin dashboard** with upload progress tracking, thumbnail previews, and embed code generation
 - **Password-protected admin** with bcrypt-hashed credentials and session-based auth
-- **REST API** for programmatic access (optional API key auth)
+- **REST API** with required API key authentication
 - **Background conversion** with real-time progress updates
 - **No build tools required** — plain Go templates, vanilla JS, no npm/webpack
 
@@ -23,6 +25,7 @@ A lightweight, self-hosted flipbook generator. Upload PowerPoint or PDF files an
 | Backend | Go + [chi](https://github.com/go-chi/chi) router |
 | Database | MongoDB Atlas |
 | Conversion | LibreOffice headless (PPTX/PPT to PDF) + pdftoppm/poppler (PDF to PNG) |
+| Text extraction | pdftotext (poppler) for search + SEO |
 | Viewer | [StPageFlip](https://github.com/nicech/page-flip) (vendored, MIT license) |
 | Frontend | Server-rendered Go templates, vanilla CSS/JS |
 
@@ -106,9 +109,19 @@ Key settings:
 3. In the admin, switch to the **Import from URL** tab
 4. Paste the Google Slides URL and click **Import & Convert**
 
-### Embed in a webpage
+### Viewing flipbooks
 
-From the flipbook detail page, copy the embed code:
+Each flipbook gets its own SEO-optimized page at `/v/{slug}`. These are standalone pages suitable for direct linking, sharing on social media, or indexing by search engines. The page includes:
+
+- Interactive 3D page-curl viewer
+- Full slide text rendered as hidden semantic HTML for search engine crawlers
+- Open Graph and Twitter Card meta tags with the first slide as the preview image
+- JSON-LD structured data (`PresentationDigitalDocument`)
+- Canonical URL for proper indexing
+
+### Embedding in a webpage
+
+If you prefer to embed a flipbook in an existing page, use the iframe embed code from the admin detail page:
 
 ```html
 <iframe src="https://your-domain.com/embed/my-presentation"
@@ -116,6 +129,8 @@ From the flipbook detail page, copy the embed code:
         style="border:none;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
 </iframe>
 ```
+
+The `/embed/{slug}` endpoint sets permissive frame headers (`X-Frame-Options: ALLOWALL`) so it can be embedded on any domain.
 
 ### API
 
@@ -129,7 +144,9 @@ curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8080/api/flipbooks
 curl -H "Authorization: Bearer YOUR_API_KEY" -X POST -F "file=@deck.pptx" http://localhost:8080/api/flipbooks
 
 # Import from Google Slides
-curl -H "Authorization: Bearer YOUR_API_KEY" -X POST -F "url=https://docs.google.com/presentation/d/PRES_ID/edit" http://localhost:8080/api/flipbooks/import
+curl -H "Authorization: Bearer YOUR_API_KEY" -X POST \
+  -F "url=https://docs.google.com/presentation/d/PRES_ID/edit" \
+  http://localhost:8080/api/flipbooks/import
 
 # Get flipbook details
 curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8080/api/flipbooks/{id}
@@ -143,14 +160,14 @@ curl -H "Authorization: Bearer YOUR_API_KEY" -X DELETE http://localhost:8080/api
 
 ### MCP (AI Agent Integration)
 
-The MCP server lets AI agents create flipbooks programmatically. It communicates via JSON-RPC 2.0 over stdin/stdout and authenticates to the API using the same API key from config.
+The built-in MCP server lets AI agents create and manage flipbooks programmatically. It communicates via JSON-RPC 2.0 over stdin/stdout and authenticates to the API using the same API key from config.
 
 ```bash
 # Start the MCP server (the web server must be running separately)
 ./flipbook mcp
 ```
 
-Configure in your AI tool's MCP settings:
+Configure in Claude Code (`~/.claude/settings.json`) or any MCP-compatible tool:
 
 ```json
 {
@@ -163,7 +180,16 @@ Configure in your AI tool's MCP settings:
 }
 ```
 
-Available MCP tools: `list_flipbooks`, `create_flipbook`, `import_google_slides`, `get_flipbook`, `get_flipbook_status`, `delete_flipbook`.
+**Available MCP tools:**
+
+| Tool | Description |
+|------|-------------|
+| `list_flipbooks` | List all flipbooks with status and URLs |
+| `create_flipbook` | Upload a file (base64), wait for conversion |
+| `import_google_slides` | Import from Google Slides URL, wait for conversion |
+| `get_flipbook` | Get flipbook details, page URLs, embed code |
+| `get_flipbook_status` | Check conversion status |
+| `delete_flipbook` | Delete a flipbook and its files |
 
 ## Project Structure
 
@@ -173,9 +199,10 @@ flipbook/
 ├── internal/
 │   ├── auth/auth.go                 # Password auth + session management
 │   ├── config/config.go             # YAML + env config loading
-│   ├── converter/                   # PPTX→PDF→PNG pipeline
+│   ├── converter/                   # PPTX→PDF→PNG pipeline + text extraction
 │   ├── database/database.go         # MongoDB operations
 │   ├── handlers/                    # HTTP handlers (admin, API, viewer, embed)
+│   ├── mcp/server.go                # MCP server (JSON-RPC 2.0 over stdio)
 │   ├── models/flipbook.go           # Data models
 │   ├── storage/storage.go           # Filesystem storage
 │   └── worker/worker.go             # Background conversion queue

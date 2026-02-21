@@ -5,8 +5,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Flipbook.Title}}</title>
+    <meta name="description" content="{{.MetaDesc}}">
+    <link rel="canonical" href="{{.CanonicalURL}}">
+
+    <!-- Open Graph -->
     <meta property="og:title" content="{{.Flipbook.Title}}">
-    <meta property="og:type" content="website">
+    <meta property="og:description" content="{{.MetaDesc}}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{.CanonicalURL}}">
+    {{if .OGImage}}<meta property="og:image" content="{{.OGImage}}">{{end}}
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{.Flipbook.Title}}">
+    <meta name="twitter:description" content="{{.MetaDesc}}">
+    {{if .OGImage}}<meta name="twitter:image" content="{{.OGImage}}">{{end}}
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "PresentationDigitalDocument",
+        "name": "{{.Flipbook.Title}}",
+        "description": "{{.MetaDesc}}",
+        "url": "{{.CanonicalURL}}",
+        {{if .OGImage}}"image": "{{.OGImage}}",{{end}}
+        "numberOfPages": {{.Flipbook.PageCount}},
+        "datePublished": "{{.Flipbook.CreatedAt.Format "2006-01-02"}}"
+    }
+    </script>
+
     <link rel="stylesheet" href="/static/css/viewer.css">
 </head>
 <body>
@@ -99,6 +127,22 @@
         </div>
         <div id="grid-container"></div>
     </div>
+
+    <!-- SEO: Server-rendered slide content (hidden from visual users, visible to crawlers) -->
+    {{if .PageTexts}}
+    <article id="seo-content" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
+        <h1>{{.Flipbook.Title}}</h1>
+        {{if .Flipbook.Description}}<p>{{.Flipbook.Description}}</p>{{end}}
+        {{range $i, $text := .PageTexts}}
+        {{if $text}}
+        <section>
+            <h2>Slide {{add $i 1}}</h2>
+            <p>{{$text}}</p>
+        </section>
+        {{end}}
+        {{end}}
+    </article>
+    {{end}}
 
     <script>
         window.FLIPBOOK_DATA = {
