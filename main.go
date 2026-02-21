@@ -167,6 +167,7 @@ func runServer() {
 		r.Get("/admin", adminH.Index)
 		r.Get("/admin/upload", adminH.UploadForm)
 		r.Post("/admin/upload", adminH.Upload)
+		r.Post("/admin/import", adminH.ImportURL)
 		r.Get("/admin/flipbooks/{id}", adminH.Detail)
 		r.Post("/admin/flipbooks/{id}/delete", adminH.Delete)
 		r.Post("/admin/flipbooks/{id}/settings", adminH.Settings)

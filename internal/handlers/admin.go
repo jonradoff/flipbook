@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -71,8 +72,8 @@ func (h *AdminHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if ext != ".pptx" && ext != ".ppt" {
-		http.Error(w, "Only .pptx and .ppt files are supported", 400)
+	if ext != ".pptx" && ext != ".ppt" && ext != ".pdf" {
+		http.Error(w, "Only .pptx, .ppt, and .pdf files are supported", 400)
 		return
 	}
 
@@ -165,6 +166,82 @@ func (h *AdminHandler) Settings(w http.ResponseWriter, r *http.Request) {
 
 func embedCode(baseURL, slug string) string {
 	return `<iframe src="` + baseURL + `/embed/` + slug + `" width="800" height="600" frameborder="0" allowfullscreen style="border:none;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);"></iframe>`
+}
+
+// Google Slides URL pattern: extract presentation ID
+var googleSlidesRe = regexp.MustCompile(`/presentation/d/([a-zA-Z0-9_-]+)`)
+
+func (h *AdminHandler) ImportURL(w http.ResponseWriter, r *http.Request) {
+	url := strings.TrimSpace(r.FormValue("url"))
+	if url == "" {
+		http.Error(w, "No URL provided", 400)
+		return
+	}
+
+	// Extract Google Slides presentation ID
+	matches := googleSlidesRe.FindStringSubmatch(url)
+	if len(matches) < 2 {
+		http.Error(w, "Invalid Google Slides URL. Use a URL like: https://docs.google.com/presentation/d/PRESENTATION_ID/edit", 400)
+		return
+	}
+	presentationID := matches[1]
+
+	// Download as PDF via Google's export endpoint
+	exportURL := fmt.Sprintf("https://docs.google.com/presentation/d/%s/export/pdf", presentationID)
+	resp, err := http.Get(exportURL)
+	if err != nil {
+		log.Printf("Failed to download Google Slides: %v", err)
+		http.Error(w, "Failed to download presentation. Make sure the presentation is publicly accessible (Anyone with the link).", 400)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		http.Error(w, "Failed to download presentation. Make sure the presentation is publicly accessible (Anyone with the link).", 400)
+		return
+	}
+
+	id := uuid.New().String()
+	title := r.FormValue("title")
+	if title == "" {
+		title = "Google Slides Import"
+	}
+	slug := slugify(title)
+	slug = h.db.EnsureUniqueSlug(slug)
+
+	// Save downloaded PDF
+	srcPath, err := h.storage.SaveUpload(id, "import.pdf", resp.Body)
+	if err != nil {
+		log.Printf("Failed to save downloaded PDF: %v", err)
+		http.Error(w, "Failed to save file", 500)
+		return
+	}
+
+	fb := &models.Flipbook{
+		ID:       id,
+		Title:    title,
+		Slug:     slug,
+		Filename: "import.pdf",
+		Status:   models.StatusPending,
+	}
+	if err := h.db.CreateFlipbook(fb); err != nil {
+		log.Printf("Failed to create flipbook record: %v", err)
+		http.Error(w, "Failed to create flipbook", 500)
+		return
+	}
+
+	h.worker.Enqueue(worker.Job{FlipbookID: id, SourcePath: srcPath})
+
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"id":   id,
+			"slug": slug,
+		})
+		return
+	}
+
+	http.Redirect(w, r, "/admin/flipbooks/"+id, http.StatusSeeOther)
 }
 
 var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)

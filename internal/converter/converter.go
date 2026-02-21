@@ -39,11 +39,20 @@ func (c *Converter) Convert(ctx context.Context, srcPath, pagesDir, thumbsDir st
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	// Step 1: PPTX → PDF
 	outDir := filepath.Dir(pagesDir)
-	pdfPath, err := c.pptxToPDF(ctx, srcPath, outDir)
-	if err != nil {
-		return nil, fmt.Errorf("pptx to pdf: %w", err)
+	var pdfPath string
+
+	ext := strings.ToLower(filepath.Ext(srcPath))
+	if ext == ".pdf" {
+		// Already a PDF — skip LibreOffice conversion
+		pdfPath = srcPath
+	} else {
+		// Step 1: PPTX/PPT → PDF
+		var err error
+		pdfPath, err = c.pptxToPDF(ctx, srcPath, outDir)
+		if err != nil {
+			return nil, fmt.Errorf("pptx to pdf: %w", err)
+		}
 	}
 
 	// Step 2: PDF → PNG pages (high DPI)

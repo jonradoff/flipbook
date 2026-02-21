@@ -5,97 +5,155 @@ document.addEventListener('DOMContentLoaded', function() {
     var fileName = document.getElementById('file-name');
     var fileSize = document.getElementById('file-size');
     var form = document.getElementById('upload-form');
-    var submitBtn = document.getElementById('submit-btn');
+    var importForm = document.getElementById('import-form');
 
-    if (!fileInput) return;
+    if (!form && !importForm) return;
+
+    // Tab switching
+    var tabs = document.querySelectorAll('.upload-tab');
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
+        });
+    });
 
     // File selection display
-    fileInput.addEventListener('change', function() {
-        if (fileInput.files.length > 0) {
-            var f = fileInput.files[0];
-            fileName.textContent = f.name;
-            fileSize.textContent = formatSize(f.size);
-            fileInfo.classList.remove('hidden');
-            dropzone.querySelector('.dropzone-content').classList.add('hidden');
-        }
-    });
-
-    // Drag and drop styling
-    dropzone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
-    });
-    dropzone.addEventListener('dragleave', function() {
-        dropzone.classList.remove('dragover');
-    });
-    dropzone.addEventListener('drop', function() {
-        dropzone.classList.remove('dragover');
-    });
-
-    // Upload with progress tracking
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        if (!fileInput.files.length) return;
-
-        // Switch to progress view
-        document.getElementById('upload-section').classList.add('hidden');
-        document.getElementById('progress-section').classList.remove('hidden');
-
-        var uploadFile = fileInput.files[0];
-        document.getElementById('progress-title').textContent = 'Processing: ' + uploadFile.name;
-
-        // Step 1: Upload
-        activateStep('step-upload');
-        document.getElementById('upload-progress').classList.remove('hidden');
-
-        var formData = new FormData(form);
-        var xhr = new XMLHttpRequest();
-        var startTime = Date.now();
-
-        xhr.upload.addEventListener('progress', function(e) {
-            if (e.lengthComputable) {
-                var pct = (e.loaded / e.total) * 100;
-                document.getElementById('progress-fill').style.width = pct + '%';
-
-                var elapsed = (Date.now() - startTime) / 1000;
-                var speed = e.loaded / elapsed;
-                var remaining = (e.total - e.loaded) / speed;
-
-                var detail = Math.round(pct) + '% (' + formatSize(e.loaded) + ' / ' + formatSize(e.total) + ')';
-                if (pct < 100 && remaining > 1) {
-                    detail += ' — ~' + Math.ceil(remaining) + 's remaining';
-                }
-                document.getElementById('upload-detail').textContent = detail;
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files.length > 0) {
+                var f = fileInput.files[0];
+                fileName.textContent = f.name;
+                fileSize.textContent = formatSize(f.size);
+                fileInfo.classList.remove('hidden');
+                dropzone.querySelector('.dropzone-content').classList.add('hidden');
             }
         });
 
-        xhr.addEventListener('load', function() {
-            if (xhr.status >= 200 && xhr.status < 400) {
-                // Upload complete
-                completeStep('step-upload');
-                document.getElementById('upload-detail').textContent = formatSize(uploadFile.size) + ' uploaded';
-                document.getElementById('upload-progress').classList.add('hidden');
+        // Drag and drop styling
+        dropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', function() {
+            dropzone.classList.remove('dragover');
+        });
+        dropzone.addEventListener('drop', function() {
+            dropzone.classList.remove('dragover');
+        });
+    }
 
-                // Parse JSON response to get flipbook ID
-                try {
-                    var response = JSON.parse(xhr.responseText);
-                    startPolling(response.id);
-                } catch(err) {
-                    window.location.href = '/admin';
+    // File upload with progress tracking
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!fileInput.files.length) return;
+
+            document.getElementById('upload-section').classList.add('hidden');
+            document.getElementById('progress-section').classList.remove('hidden');
+
+            var uploadFile = fileInput.files[0];
+            document.getElementById('progress-title').textContent = 'Processing: ' + uploadFile.name;
+
+            activateStep('step-upload');
+            document.getElementById('upload-progress').classList.remove('hidden');
+
+            var formData = new FormData(form);
+            var xhr = new XMLHttpRequest();
+            var startTime = Date.now();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    var pct = (e.loaded / e.total) * 100;
+                    document.getElementById('progress-fill').style.width = pct + '%';
+
+                    var elapsed = (Date.now() - startTime) / 1000;
+                    var speed = e.loaded / elapsed;
+                    var remaining = (e.total - e.loaded) / speed;
+
+                    var detail = Math.round(pct) + '% (' + formatSize(e.loaded) + ' / ' + formatSize(e.total) + ')';
+                    if (pct < 100 && remaining > 1) {
+                        detail += ' — ~' + Math.ceil(remaining) + 's remaining';
+                    }
+                    document.getElementById('upload-detail').textContent = detail;
                 }
-            } else {
-                showError(xhr.responseText || 'Upload failed');
-            }
-        });
+            });
 
-        xhr.addEventListener('error', function() {
-            showError('Network error — please check your connection and try again.');
-        });
+            xhr.addEventListener('load', function() {
+                if (xhr.status >= 200 && xhr.status < 400) {
+                    completeStep('step-upload');
+                    document.getElementById('upload-detail').textContent = formatSize(uploadFile.size) + ' uploaded';
+                    document.getElementById('upload-progress').classList.add('hidden');
 
-        xhr.open('POST', '/admin/upload');
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        xhr.send(formData);
-    });
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        startPolling(response.id);
+                    } catch(err) {
+                        window.location.href = '/admin';
+                    }
+                } else {
+                    showError(xhr.responseText || 'Upload failed');
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                showError('Network error — please check your connection and try again.');
+            });
+
+            xhr.open('POST', '/admin/upload');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.send(formData);
+        });
+    }
+
+    // URL import
+    if (importForm) {
+        importForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var urlInput = document.getElementById('import-url');
+            if (!urlInput.value.trim()) return;
+
+            document.getElementById('upload-section').classList.add('hidden');
+            document.getElementById('progress-section').classList.remove('hidden');
+            document.getElementById('progress-title').textContent = 'Importing presentation...';
+
+            // Update step label for URL import
+            var uploadLabel = document.getElementById('upload-label');
+            if (uploadLabel) uploadLabel.textContent = 'Downloading from Google Slides';
+
+            activateStep('step-upload');
+            document.getElementById('upload-progress').classList.add('hidden');
+
+            var formData = new FormData(importForm);
+            var xhr = new XMLHttpRequest();
+
+            xhr.addEventListener('load', function() {
+                if (xhr.status >= 200 && xhr.status < 400) {
+                    completeStep('step-upload');
+                    document.getElementById('upload-detail').textContent = 'Downloaded';
+
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        startPolling(response.id);
+                    } catch(err) {
+                        window.location.href = '/admin';
+                    }
+                } else {
+                    showError(xhr.responseText || 'Import failed');
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                showError('Network error — please check your connection and try again.');
+            });
+
+            xhr.open('POST', '/admin/import');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.send(formData);
+        });
+    }
 
     function startPolling(flipbookId) {
         activateStep('step-queue');
@@ -116,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (!convertStart) convertStart = Date.now();
                         var elapsed = Math.round((Date.now() - convertStart) / 1000);
                         document.getElementById('convert-detail').textContent =
-                            'Converting slides to images... (' + elapsed + 's elapsed)';
+                            'Converting pages to images... (' + elapsed + 's elapsed)';
                     } else if (data.status === 'ready') {
                         clearInterval(pollInterval);
                         completeStep('step-queue');

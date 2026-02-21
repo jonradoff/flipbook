@@ -107,8 +107,8 @@ func (h *APIHandler) UploadFlipbook(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if ext != ".pptx" && ext != ".ppt" {
-		jsonError(w, "Only .pptx and .ppt files are supported", 400)
+	if ext != ".pptx" && ext != ".ppt" && ext != ".pdf" {
+		jsonError(w, "Only .pptx, .ppt, and .pdf files are supported", 400)
 		return
 	}
 

@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload - Flipbook</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .upload-tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+        .upload-tab {
+            padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: 500;
+            color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px;
+            background: none; border-top: none; border-left: none; border-right: none;
+        }
+        .upload-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .upload-tab:hover { color: var(--text); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .url-help { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -21,28 +34,55 @@
     <main class="container">
         <!-- Upload Form (shown initially) -->
         <div id="upload-section">
-            <h1>Upload PowerPoint</h1>
-            <form action="/admin/upload" method="POST" enctype="multipart/form-data" id="upload-form">
-                <div class="form-group">
-                    <label for="title">Title (optional)</label>
-                    <input type="text" id="title" name="title" placeholder="Leave blank to use filename">
-                </div>
-                <div class="form-group">
-                    <div class="dropzone" id="dropzone">
-                        <input type="file" id="file" name="file" accept=".pptx,.ppt" required>
-                        <div class="dropzone-content">
-                            <div class="dropzone-icon">&#128196;</div>
-                            <p>Drag & drop a PowerPoint file here</p>
-                            <p class="text-muted">or click to browse (.pptx, .ppt)</p>
-                        </div>
-                        <div class="dropzone-file hidden" id="file-info">
-                            <span id="file-name"></span>
-                            <span id="file-size"></span>
+            <h1>Create Flipbook</h1>
+
+            <div class="upload-tabs">
+                <button class="upload-tab active" data-tab="file-tab">Upload File</button>
+                <button class="upload-tab" data-tab="url-tab">Import from URL</button>
+            </div>
+
+            <!-- File Upload Tab -->
+            <div class="tab-panel active" id="file-tab">
+                <form action="/admin/upload" method="POST" enctype="multipart/form-data" id="upload-form">
+                    <div class="form-group">
+                        <label for="title">Title (optional)</label>
+                        <input type="text" id="title" name="title" placeholder="Leave blank to use filename">
+                    </div>
+                    <div class="form-group">
+                        <div class="dropzone" id="dropzone">
+                            <input type="file" id="file" name="file" accept=".pptx,.ppt,.pdf" required>
+                            <div class="dropzone-content">
+                                <div class="dropzone-icon">&#128196;</div>
+                                <p>Drag & drop a file here</p>
+                                <p class="text-muted">or click to browse (.pptx, .ppt, .pdf)</p>
+                            </div>
+                            <div class="dropzone-file hidden" id="file-info">
+                                <span id="file-name"></span>
+                                <span id="file-size"></span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Upload & Convert</button>
-            </form>
+                    <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Upload & Convert</button>
+                </form>
+            </div>
+
+            <!-- URL Import Tab -->
+            <div class="tab-panel" id="url-tab">
+                <form action="/admin/import" method="POST" id="import-form">
+                    <div class="form-group">
+                        <label for="import-title">Title (optional)</label>
+                        <input type="text" id="import-title" name="title" placeholder="Leave blank for default">
+                    </div>
+                    <div class="form-group">
+                        <label for="import-url">Google Slides URL</label>
+                        <input type="url" id="import-url" name="url" required
+                            placeholder="https://docs.google.com/presentation/d/.../edit"
+                            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;">
+                        <p class="url-help">Paste a Google Slides link. The presentation must be shared as "Anyone with the link can view."</p>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" id="import-btn">Import & Convert</button>
+                </form>
+            </div>
         </div>
 
         <!-- Progress Tracker (shown after upload starts) -->
@@ -56,7 +96,7 @@
                         <svg class="tracker-check hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                     <div class="tracker-info">
-                        <div class="tracker-label">Uploading file</div>
+                        <div class="tracker-label" id="upload-label">Uploading file</div>
                         <div class="tracker-detail" id="upload-detail"></div>
                     </div>
                 </div>
@@ -79,7 +119,7 @@
                     </div>
                     <div class="tracker-info">
                         <div class="tracker-label">Converting to flipbook</div>
-                        <div class="tracker-detail" id="convert-detail">PDF conversion, page rendering, text extraction</div>
+                        <div class="tracker-detail" id="convert-detail">Page rendering, text extraction</div>
                     </div>
                 </div>
 
