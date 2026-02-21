@@ -6,7 +6,7 @@ A lightweight, self-hosted flipbook generator. Upload PowerPoint or PDF files an
 
 - **Upload & convert** PowerPoint (.pptx, .ppt) and PDF files to interactive flipbooks
 - **Import from Google Slides** via public share URL
-- **3D page-curl viewer** powered by [StPageFlip](https://github.com/nicech/page-flip) with keyboard navigation, fullscreen, and deep-linking
+- **3D page-curl viewer** powered by [StPageFlip](https://github.com/Nodlik/StPageFlip) with keyboard navigation, fullscreen, and deep-linking
 - **SEO-optimized pages** with full slide text rendered as hidden semantic HTML, Open Graph tags, Twitter Cards, JSON-LD structured data, and canonical URLs
 - **Embeddable** via iframe with a single line of HTML, or host directly as standalone pages
 - **Grid view** for browsing all slides at a glance
@@ -26,7 +26,7 @@ A lightweight, self-hosted flipbook generator. Upload PowerPoint or PDF files an
 | Database | MongoDB Atlas |
 | Conversion | LibreOffice headless (PPTX/PPT to PDF) + pdftoppm/poppler (PDF to PNG) |
 | Text extraction | pdftotext (poppler) for search + SEO |
-| Viewer | [StPageFlip](https://github.com/nicech/page-flip) (vendored, MIT license) |
+| Viewer | [StPageFlip](https://github.com/Nodlik/StPageFlip) (vendored, MIT license) |
 | Frontend | Server-rendered Go templates, vanilla CSS/JS |
 
 ## Prerequisites
