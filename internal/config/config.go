@@ -103,6 +103,13 @@ func Load() *Config {
 		cfg.SessionSecret = hex.EncodeToString(b)
 	}
 
+	// Generate a random API key if not set
+	if cfg.APIKey == "" {
+		b := make([]byte, 32)
+		rand.Read(b)
+		cfg.APIKey = hex.EncodeToString(b)
+	}
+
 	return cfg
 }
 

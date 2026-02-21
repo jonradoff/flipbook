@@ -213,6 +213,7 @@ func runServer() {
 
 	log.Printf("Flipbook server starting on :%s", cfg.Port)
 	log.Printf("Admin UI:  %s/admin", cfg.BaseURL)
+	log.Printf("API key:   %s", cfg.APIKey)
 	log.Printf("LibreOffice: %s", cfg.LibreOfficeBin)
 
 	// Graceful shutdown
@@ -241,14 +242,10 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// apiAuth middleware protects API routes with a bearer token when an API key is configured.
+// apiAuth middleware protects API routes with a bearer token.
 func apiAuth(apiKey string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if apiKey == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
 			token := r.Header.Get("Authorization")
 			if token == "Bearer "+apiKey {
 				next.ServeHTTP(w, r)

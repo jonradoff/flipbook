@@ -25,4 +25,4 @@ thumbnail_dpi: 72           # Thumbnail images
 
 # Security
 session_secret: ""          # Random 64-char hex string; auto-generated if blank
-api_key: ""                 # Bearer token for API access; leave blank to disable API auth
+api_key: ""                 # Bearer token for API/MCP access; auto-generated if blank

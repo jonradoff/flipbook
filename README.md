@@ -87,7 +87,7 @@ Key settings:
 | `base_url` | `FLIPBOOK_BASE_URL` | `http://localhost:8080` | Public URL |
 | `mongo_uri` | `FLIPBOOK_MONGO_URI` | — | MongoDB connection string |
 | `session_secret` | `FLIPBOOK_SESSION_SECRET` | auto-generated | Session signing key |
-| `api_key` | `FLIPBOOK_API_KEY` | — | Bearer token for API auth |
+| `api_key` | `FLIPBOOK_API_KEY` | auto-generated | Bearer token for API/MCP auth |
 
 ## Usage
 
@@ -119,28 +119,51 @@ From the flipbook detail page, copy the embed code:
 
 ### API
 
+All API routes require a bearer token. The API key is logged at server startup (auto-generated if not set in config).
+
 ```bash
 # List all flipbooks
-curl http://localhost:8080/api/flipbooks
+curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8080/api/flipbooks
 
 # Upload a file
-curl -X POST -F "file=@deck.pptx" http://localhost:8080/api/flipbooks
+curl -H "Authorization: Bearer YOUR_API_KEY" -X POST -F "file=@deck.pptx" http://localhost:8080/api/flipbooks
+
+# Import from Google Slides
+curl -H "Authorization: Bearer YOUR_API_KEY" -X POST -F "url=https://docs.google.com/presentation/d/PRES_ID/edit" http://localhost:8080/api/flipbooks/import
 
 # Get flipbook details
-curl http://localhost:8080/api/flipbooks/{id}
+curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8080/api/flipbooks/{id}
 
-# Check conversion status
+# Check conversion status (no auth required)
 curl http://localhost:8080/api/flipbooks/{id}/status
 
 # Delete a flipbook
-curl -X DELETE http://localhost:8080/api/flipbooks/{id}
+curl -H "Authorization: Bearer YOUR_API_KEY" -X DELETE http://localhost:8080/api/flipbooks/{id}
 ```
 
-If an API key is configured, include it as a bearer token:
+### MCP (AI Agent Integration)
+
+The MCP server lets AI agents create flipbooks programmatically. It communicates via JSON-RPC 2.0 over stdin/stdout and authenticates to the API using the same API key from config.
 
 ```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:8080/api/flipbooks
+# Start the MCP server (the web server must be running separately)
+./flipbook mcp
 ```
+
+Configure in your AI tool's MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "flipbook": {
+      "command": "/path/to/flipbook",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Available MCP tools: `list_flipbooks`, `create_flipbook`, `import_google_slides`, `get_flipbook`, `get_flipbook_status`, `delete_flipbook`.
 
 ## Project Structure
 
