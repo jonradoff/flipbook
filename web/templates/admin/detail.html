@@ -26,6 +26,16 @@
             <span class="badge badge-{{.Flipbook.Status}}">{{.Flipbook.Status}}</span>
         </div>
 
+        {{if eq .Flipbook.Status "regenerating"}}
+        <div class="status-card converting">
+            <div class="spinner"></div>
+            <p>Restoring flipbook from backup and reconverting... This may take a few minutes.</p>
+        </div>
+        <script>
+            setTimeout(function() { location.reload(); }, 5000);
+        </script>
+        {{end}}
+
         {{if eq .Flipbook.Status "converting"}}
         <div class="status-card converting">
             <div class="spinner"></div>

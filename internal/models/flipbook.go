@@ -3,10 +3,11 @@ package models
 import "time"
 
 const (
-	StatusPending    = "pending"
-	StatusConverting = "converting"
-	StatusReady      = "ready"
-	StatusError      = "error"
+	StatusPending      = "pending"
+	StatusConverting   = "converting"
+	StatusReady        = "ready"
+	StatusError        = "error"
+	StatusRegenerating = "regenerating"
 )
 
 type Flipbook struct {
@@ -22,6 +23,7 @@ type Flipbook struct {
 	PageWidth    int
 	PageHeight   int
 	IsPublic     bool
+	GridFSFileID string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	ConvertedAt  *time.Time

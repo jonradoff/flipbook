@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -106,6 +108,26 @@ func (h *AdminHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Back up original to GridFS
+	go func() {
+		f, err := os.Open(srcPath)
+		if err != nil {
+			log.Printf("GridFS: failed to open original for %s: %v", id, err)
+			return
+		}
+		defer f.Close()
+		gridfsID, err := h.db.UploadToGridFS(context.Background(), header.Filename, f)
+		if err != nil {
+			log.Printf("GridFS: upload failed for %s: %v", id, err)
+			return
+		}
+		if err := h.db.SetGridFSFileID(id, gridfsID); err != nil {
+			log.Printf("GridFS: failed to save file ID for %s: %v", id, err)
+			return
+		}
+		log.Printf("GridFS: backed up %s (%s)", id, header.Filename)
+	}()
+
 	h.worker.Enqueue(worker.Job{FlipbookID: id, SourcePath: srcPath})
 
 	// Return JSON for AJAX requests so the client can track progress
@@ -149,8 +171,16 @@ func (h *AdminHandler) Detail(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	fb, _ := h.db.GetFlipbook(id)
 	h.db.DeleteFlipbook(id)
 	h.storage.DeleteFlipbook(id)
+	if fb != nil && fb.GridFSFileID != "" {
+		go func() {
+			if err := h.db.DeleteFromGridFS(context.Background(), fb.GridFSFileID); err != nil {
+				log.Printf("GridFS: cleanup failed for %s: %v", id, err)
+			}
+		}()
+	}
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
@@ -229,6 +259,26 @@ func (h *AdminHandler) ImportURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create flipbook", 500)
 		return
 	}
+
+	// Back up original to GridFS
+	go func() {
+		f, err := os.Open(srcPath)
+		if err != nil {
+			log.Printf("GridFS: failed to open original for %s: %v", id, err)
+			return
+		}
+		defer f.Close()
+		gridfsID, err := h.db.UploadToGridFS(context.Background(), "import.pdf", f)
+		if err != nil {
+			log.Printf("GridFS: upload failed for %s: %v", id, err)
+			return
+		}
+		if err := h.db.SetGridFSFileID(id, gridfsID); err != nil {
+			log.Printf("GridFS: failed to save file ID for %s: %v", id, err)
+			return
+		}
+		log.Printf("GridFS: backed up %s (import.pdf)", id)
+	}()
 
 	h.worker.Enqueue(worker.Job{FlipbookID: id, SourcePath: srcPath})
 

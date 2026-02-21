@@ -27,7 +27,21 @@ func NewViewerHandler(db *database.DB, store *storage.Storage, tmpl *template.Te
 func (h *ViewerHandler) View(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	fb, err := h.db.GetFlipbookBySlug(slug)
-	if err != nil || fb.Status != models.StatusReady {
+	if err != nil {
+		http.Error(w, "Flipbook not found", 404)
+		return
+	}
+
+	switch fb.Status {
+	case models.StatusReady:
+		// continue below
+	case models.StatusRegenerating, models.StatusConverting, models.StatusPending:
+		h.tmpl.ExecuteTemplate(w, "viewer_wait", map[string]interface{}{
+			"Flipbook": fb,
+			"BaseURL":  h.baseURL,
+		})
+		return
+	default:
 		http.Error(w, "Flipbook not found", 404)
 		return
 	}

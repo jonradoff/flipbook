@@ -457,23 +457,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 var div = document.createElement('div');
                 div.className = 'grid-page';
 
-                // Wrapper div holds the aspect ratio
-                var imgWrap = document.createElement('div');
-                imgWrap.className = 'grid-page-img';
-                imgWrap.style.aspectRatio = data.pageWidth + ' / ' + data.pageHeight;
-
                 var img = document.createElement('img');
+                img.className = 'grid-page-img';
                 img.src = thumbSrc[pageIndex];
                 img.alt = 'Page ' + (pageIndex + 1);
                 img.loading = 'lazy';
-
-                imgWrap.appendChild(img);
 
                 var label = document.createElement('div');
                 label.className = 'grid-page-num';
                 label.textContent = pageIndex + 1;
 
-                div.appendChild(imgWrap);
+                div.appendChild(img);
                 div.appendChild(label);
 
                 div.addEventListener('click', function() {

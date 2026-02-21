@@ -70,62 +70,65 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             </button>
         </div>
-    </div>
+        <div id="attribution">
+            Created with <a href="https://metavert.io/flipbook" target="_blank">Flipbook</a>
+        </div>
 
-    <div id="share-modal" class="modal hidden">
-        <div class="modal-overlay" onclick="closeShareModal()"></div>
-        <div class="modal-content">
-            <h3>Share this flipbook</h3>
-            <div class="form-group share-page-option">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="share-from-page"> Share from current page (<span id="share-page-num">1</span>)
-                </label>
-            </div>
-            <div class="form-group">
-                <label>Link</label>
-                <div class="copy-field">
-                    <input type="text" readonly id="share-link">
-                    <button onclick="copyField('share-link')">Copy</button>
+        <div id="share-modal" class="modal hidden">
+            <div class="modal-overlay" onclick="closeShareModal()"></div>
+            <div class="modal-content">
+                <h3>Share this flipbook</h3>
+                <div class="form-group share-page-option">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="share-from-page"> Share from current page (<span id="share-page-num">1</span>)
+                    </label>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>Embed code</label>
-                <div class="copy-field">
-                    <textarea readonly id="embed-code" rows="3"></textarea>
-                    <button onclick="copyField('embed-code')">Copy</button>
+                <div class="form-group">
+                    <label>Link</label>
+                    <div class="copy-field">
+                        <input type="text" readonly id="share-link">
+                        <button onclick="copyField('share-link')">Copy</button>
+                    </div>
                 </div>
+                <div class="form-group">
+                    <label>Embed code</label>
+                    <div class="copy-field">
+                        <textarea readonly id="embed-code" rows="3"></textarea>
+                        <button onclick="copyField('embed-code')">Copy</button>
+                    </div>
+                </div>
+                <button class="btn-close" onclick="closeShareModal()">Close</button>
             </div>
-            <button class="btn-close" onclick="closeShareModal()">Close</button>
         </div>
-    </div>
 
-    <!-- Search Overlay -->
-    <div id="search-bar" class="hidden">
-        <div id="search-bar-inner">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" placeholder="Search in slides..." autocomplete="off">
-            <span id="search-status"></span>
-            <button id="search-prev" title="Previous match" disabled>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button id="search-next" title="Next match" disabled>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-            <button id="search-close" title="Close search">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <!-- Search Overlay -->
+        <div id="search-bar" class="hidden">
+            <div id="search-bar-inner">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="search-input" placeholder="Search in slides..." autocomplete="off">
+                <span id="search-status"></span>
+                <button id="search-prev" title="Previous match" disabled>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button id="search-next" title="Next match" disabled>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button id="search-close" title="Close search">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
         </div>
-    </div>
 
-    <!-- Grid View Overlay -->
-    <div id="grid-overlay" class="hidden">
-        <div id="grid-header">
-            <h3>All Pages</h3>
-            <button id="btn-grid-close" title="Close grid">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <!-- Grid View Overlay -->
+        <div id="grid-overlay" class="hidden">
+            <div id="grid-header">
+                <h3>All Pages</h3>
+                <button id="btn-grid-close" title="Close grid">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="grid-container"></div>
         </div>
-        <div id="grid-container"></div>
     </div>
 
     <!-- SEO: Server-rendered slide content (hidden from visual users, visible to crawlers) -->

@@ -1,4 +1,4 @@
-.PHONY: build run dev clean check-deps setup set-password
+.PHONY: build run dev clean check-deps setup set-password deploy
 
 build:
 	go build -o bin/flipbook .
@@ -19,6 +19,9 @@ setup:
 
 set-password: build
 	./bin/flipbook set-password
+
+deploy:
+	fly deploy
 
 clean:
 	rm -rf bin/

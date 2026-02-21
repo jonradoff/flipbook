@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/jonradoff/flipbook/internal/models"
@@ -25,6 +26,7 @@ type flipbookDoc struct {
 	PageWidth    int        `bson:"page_width"`
 	PageHeight   int        `bson:"page_height"`
 	IsPublic     bool       `bson:"is_public"`
+	GridFSFileID string     `bson:"gridfs_file_id,omitempty"`
 	CreatedAt    time.Time  `bson:"created_at"`
 	UpdatedAt    time.Time  `bson:"updated_at"`
 	ConvertedAt  *time.Time `bson:"converted_at,omitempty"`
@@ -52,6 +54,7 @@ func docToModel(d *flipbookDoc) *models.Flipbook {
 		PageWidth:    d.PageWidth,
 		PageHeight:   d.PageHeight,
 		IsPublic:     d.IsPublic,
+		GridFSFileID: d.GridFSFileID,
 		CreatedAt:    d.CreatedAt,
 		UpdatedAt:    d.UpdatedAt,
 		ConvertedAt:  d.ConvertedAt,
@@ -70,11 +73,12 @@ type sessionDoc struct {
 }
 
 type DB struct {
-	client     *mongo.Client
-	flipbooks  *mongo.Collection
-	views      *mongo.Collection
-	settings   *mongo.Collection
-	sessions   *mongo.Collection
+	client    *mongo.Client
+	flipbooks *mongo.Collection
+	views     *mongo.Collection
+	settings  *mongo.Collection
+	sessions  *mongo.Collection
+	gridfs    *mongo.GridFSBucket
 }
 
 func Open(ctx context.Context, uri, dbName string) (*DB, error) {
@@ -94,6 +98,7 @@ func Open(ctx context.Context, uri, dbName string) (*DB, error) {
 		views:     db.Collection("views"),
 		settings:  db.Collection("settings"),
 		sessions:  db.Collection("sessions"),
+		gridfs:    db.GridFSBucket(),
 	}
 
 	d.ensureIndexes(ctx)
@@ -194,12 +199,13 @@ func (d *DB) UpdateConversionResult(id string, pageCount, width, height int) err
 	now := time.Now()
 	_, err := d.flipbooks.UpdateByID(context.Background(), id, bson.M{
 		"$set": bson.M{
-			"page_count":   pageCount,
-			"page_width":   width,
-			"page_height":  height,
-			"status":       models.StatusReady,
-			"converted_at": now,
-			"updated_at":   now,
+			"page_count":    pageCount,
+			"page_width":    width,
+			"page_height":   height,
+			"status":        models.StatusReady,
+			"error_message": "",
+			"converted_at":  now,
+			"updated_at":    now,
 		},
 	})
 	return err
@@ -328,4 +334,40 @@ func (d *DB) CleanExpiredSessions() {
 	d.sessions.DeleteMany(context.Background(), bson.M{
 		"expires_at": bson.M{"$lt": time.Now()},
 	})
+}
+
+// --- GridFS (original file backup) ---
+
+func (d *DB) UploadToGridFS(ctx context.Context, filename string, r io.Reader) (string, error) {
+	fileID, err := d.gridfs.UploadFromStream(ctx, filename, r)
+	if err != nil {
+		return "", fmt.Errorf("gridfs upload: %w", err)
+	}
+	return fileID.Hex(), nil
+}
+
+func (d *DB) DownloadFromGridFS(ctx context.Context, fileIDHex string, w io.Writer) (int64, error) {
+	oid, err := bson.ObjectIDFromHex(fileIDHex)
+	if err != nil {
+		return 0, fmt.Errorf("invalid gridfs file id: %w", err)
+	}
+	return d.gridfs.DownloadToStream(ctx, oid, w)
+}
+
+func (d *DB) DeleteFromGridFS(ctx context.Context, fileIDHex string) error {
+	oid, err := bson.ObjectIDFromHex(fileIDHex)
+	if err != nil {
+		return fmt.Errorf("invalid gridfs file id: %w", err)
+	}
+	return d.gridfs.Delete(ctx, oid)
+}
+
+func (d *DB) SetGridFSFileID(id, gridfsFileID string) error {
+	_, err := d.flipbooks.UpdateByID(context.Background(), id, bson.M{
+		"$set": bson.M{
+			"gridfs_file_id": gridfsFileID,
+			"updated_at":     time.Now(),
+		},
+	})
+	return err
 }

@@ -100,6 +100,12 @@ func (s *Storage) ThumbImageURL(id, format string, pageNum int) string {
 	return fmt.Sprintf("/data/flipbooks/%s/thumbs/page-"+format+".png", id, pageNum)
 }
 
+// HasPages checks if any converted page images exist on disk.
+func (s *Storage) HasPages(id string) bool {
+	matches, _ := filepath.Glob(filepath.Join(s.PagesDir(id), "page-*.png"))
+	return len(matches) > 0
+}
+
 // LoadPageTexts reads the extracted text.json for a flipbook.
 // Returns nil (not an error) if the file doesn't exist.
 func (s *Storage) LoadPageTexts(id string) []string {

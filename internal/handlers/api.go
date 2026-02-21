@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -143,6 +145,26 @@ func (h *APIHandler) UploadFlipbook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Back up original to GridFS
+	go func() {
+		f, err := os.Open(srcPath)
+		if err != nil {
+			log.Printf("GridFS: failed to open original for %s: %v", id, err)
+			return
+		}
+		defer f.Close()
+		gridfsID, err := h.db.UploadToGridFS(context.Background(), header.Filename, f)
+		if err != nil {
+			log.Printf("GridFS: upload failed for %s: %v", id, err)
+			return
+		}
+		if err := h.db.SetGridFSFileID(id, gridfsID); err != nil {
+			log.Printf("GridFS: failed to save file ID for %s: %v", id, err)
+			return
+		}
+		log.Printf("GridFS: backed up %s (%s)", id, header.Filename)
+	}()
+
 	h.worker.Enqueue(worker.Job{FlipbookID: id, SourcePath: srcPath})
 
 	w.WriteHeader(http.StatusCreated)
@@ -229,6 +251,26 @@ func (h *APIHandler) ImportURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Back up original to GridFS
+	go func() {
+		f, err := os.Open(srcPath)
+		if err != nil {
+			log.Printf("GridFS: failed to open original for %s: %v", id, err)
+			return
+		}
+		defer f.Close()
+		gridfsID, err := h.db.UploadToGridFS(context.Background(), "import.pdf", f)
+		if err != nil {
+			log.Printf("GridFS: upload failed for %s: %v", id, err)
+			return
+		}
+		if err := h.db.SetGridFSFileID(id, gridfsID); err != nil {
+			log.Printf("GridFS: failed to save file ID for %s: %v", id, err)
+			return
+		}
+		log.Printf("GridFS: backed up %s (import.pdf)", id)
+	}()
+
 	h.worker.Enqueue(worker.Job{FlipbookID: id, SourcePath: srcPath})
 
 	w.WriteHeader(http.StatusCreated)
@@ -243,8 +285,16 @@ func (h *APIHandler) ImportURL(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) DeleteFlipbook(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	fb, _ := h.db.GetFlipbook(id)
 	h.db.DeleteFlipbook(id)
 	h.storage.DeleteFlipbook(id)
+	if fb != nil && fb.GridFSFileID != "" {
+		go func() {
+			if err := h.db.DeleteFromGridFS(context.Background(), fb.GridFSFileID); err != nil {
+				log.Printf("GridFS: cleanup failed for %s: %v", id, err)
+			}
+		}()
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -5,8 +5,9 @@ flipbook
 # Runtime data
 data/
 
-# Dev config (contains secrets)
+# Config files with secrets
 config.dev.yaml
+config.prod.yaml
 
 # OS files
 .DS_Store

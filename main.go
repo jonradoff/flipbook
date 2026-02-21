@@ -32,6 +32,9 @@ func main() {
 		case "set-password":
 			runSetPassword()
 			return
+		case "backfill-gridfs":
+			runBackfillGridFS()
+			return
 		case "mcp":
 			mcp.Run()
 			return
@@ -52,10 +55,11 @@ func printHelp() {
 	fmt.Println("Usage: flipbook [command]")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  (no command)    Start the web server")
-	fmt.Println("  set-password    Set the admin password")
-	fmt.Println("  mcp             Start the MCP server (stdin/stdout)")
-	fmt.Println("  help            Show this help message")
+	fmt.Println("  (no command)       Start the web server")
+	fmt.Println("  set-password       Set the admin password")
+	fmt.Println("  backfill-gridfs    Upload existing originals to GridFS backup")
+	fmt.Println("  mcp                Start the MCP server (stdin/stdout)")
+	fmt.Println("  help               Show this help message")
 }
 
 func runSetPassword() {
@@ -86,6 +90,55 @@ func runSetPassword() {
 	}
 
 	fmt.Println("Admin password set successfully.")
+}
+
+func runBackfillGridFS() {
+	cfg := config.Load()
+
+	db, err := database.Open(context.Background(), cfg.MongoURI, cfg.MongoDB)
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer db.Close(context.Background())
+
+	store := storage.New(filepath.Join(cfg.DataDir, "flipbooks"))
+
+	flipbooks, err := db.ListFlipbooks()
+	if err != nil {
+		log.Fatalf("Failed to list flipbooks: %v", err)
+	}
+
+	for _, fb := range flipbooks {
+		if fb.GridFSFileID != "" {
+			fmt.Printf("  SKIP %s (%s) — already backed up\n", fb.ID, fb.Title)
+			continue
+		}
+
+		ext := filepath.Ext(fb.Filename)
+		srcPath := store.OriginalPath(fb.ID, ext)
+
+		f, err := os.Open(srcPath)
+		if err != nil {
+			fmt.Printf("  MISS %s (%s) — original not found: %s\n", fb.ID, fb.Title, srcPath)
+			continue
+		}
+
+		gridfsID, err := db.UploadToGridFS(context.Background(), fb.Filename, f)
+		f.Close()
+		if err != nil {
+			fmt.Printf("  FAIL %s (%s) — GridFS upload: %v\n", fb.ID, fb.Title, err)
+			continue
+		}
+
+		if err := db.SetGridFSFileID(fb.ID, gridfsID); err != nil {
+			fmt.Printf("  FAIL %s (%s) — save ID: %v\n", fb.ID, fb.Title, err)
+			continue
+		}
+
+		fmt.Printf("  OK   %s (%s) — backed up as %s\n", fb.ID, fb.Title, gridfsID)
+	}
+
+	fmt.Println("Backfill complete.")
 }
 
 func runServer() {
@@ -119,6 +172,64 @@ func runServer() {
 		ext := filepath.Ext(fb.Filename)
 		w.Enqueue(worker.Job{FlipbookID: fb.ID, SourcePath: store.OriginalPath(fb.ID, ext)})
 	}
+
+	// Re-queue stuck regenerations
+	regen, _ := db.GetFlipbooksByStatus("regenerating")
+	for _, fb := range regen {
+		log.Printf("Re-queuing stuck regeneration: %s", fb.ID)
+		db.UpdateStatus(fb.ID, "pending", "")
+		ext := filepath.Ext(fb.Filename)
+		w.Enqueue(worker.Job{FlipbookID: fb.ID, SourcePath: store.OriginalPath(fb.ID, ext)})
+	}
+
+	// Integrity check: detect ready flipbooks with missing page files and restore from GridFS
+	go func() {
+		readyFlipbooks, err := db.GetFlipbooksByStatus("ready")
+		if err != nil {
+			log.Printf("Integrity check: failed to query flipbooks: %v", err)
+			return
+		}
+
+		for _, fb := range readyFlipbooks {
+			if store.HasPages(fb.ID) {
+				continue
+			}
+			if fb.GridFSFileID == "" {
+				log.Printf("Integrity check: %s (%s) missing pages but no GridFS backup, skipping", fb.ID, fb.Title)
+				continue
+			}
+
+			log.Printf("Integrity check: %s (%s) missing pages, restoring from GridFS", fb.ID, fb.Title)
+
+			ext := filepath.Ext(fb.Filename)
+			dstPath := store.OriginalPath(fb.ID, ext)
+
+			if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+				log.Printf("Integrity check: failed to create dir for %s: %v", fb.ID, err)
+				continue
+			}
+
+			f, err := os.Create(dstPath)
+			if err != nil {
+				log.Printf("Integrity check: failed to create file for %s: %v", fb.ID, err)
+				continue
+			}
+
+			_, err = db.DownloadFromGridFS(context.Background(), fb.GridFSFileID, f)
+			f.Close()
+			if err != nil {
+				log.Printf("Integrity check: GridFS download failed for %s: %v", fb.ID, err)
+				os.Remove(dstPath)
+				db.UpdateStatus(fb.ID, "error", "Failed to restore from backup: "+err.Error())
+				continue
+			}
+
+			db.UpdateStatus(fb.ID, "regenerating", "")
+			w.Enqueue(worker.Job{FlipbookID: fb.ID, SourcePath: dstPath})
+		}
+
+		log.Println("Integrity check complete")
+	}()
 
 	// Parse templates
 	tmpl := parseTemplates()
